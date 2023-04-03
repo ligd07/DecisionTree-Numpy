@@ -146,7 +146,8 @@ class DecisionTree:
         y:numpy.ndarray
             数据标签
         feature:int
-            分割的属性索引，当属性连续时，按照t值将数据分为两份，当属性离散时，则属性有几类便将数据集分为几类
+            分割的属性索引，当属性连续时，按照t值将数据分为两份(若两份中有一份的数据个数为0则删除个数为0的那份)，
+            当属性离散时，则属性有几类便将数据集分为几类(删除数据个数为0的那份)
         t:float
             当属性连续时，按照t值将数据分为两份，当属性为离散值时该值不起作用
 
@@ -165,17 +166,21 @@ class DecisionTree:
         div_z = []
         if self.feature_attributes[feature] == "c":
             tmp = x[:, feature].astype(float)
-            div_x.append(x[tmp <= t])
-            div_x.append(x[tmp > t])
-            div_y.append(y[tmp <= t])
-            div_y.append(y[tmp > t])
-            div_z.append(True)
-            div_z.append(False)
+            if (tmp <= t).sum() != 0:
+                div_x.append(x[tmp <= t])
+                div_y.append(y[tmp <= t])
+                div_z.append(True)
+
+            if (tmp > t).sum() != 0:
+                div_x.append(x[tmp > t])
+                div_y.append(y[tmp > t])
+                div_z.append(False)
         else:
             for i in np.unique(x[:, feature]):
-                div_x.append(x[x[:, feature] == i])
-                div_y.append(y[x[:, feature] == i])
-                div_z.append(i)
+                if (x[:, feature] == i).sum() != 0:
+                    div_x.append(x[x[:, feature] == i])
+                    div_y.append(y[x[:, feature] == i])
+                    div_z.append(i)
         return div_x, div_y, div_z
 
     def information_gain(self, x, y, feature, t=0):
@@ -281,7 +286,7 @@ class DecisionTree:
 
         leaf_data, leaf_labels, div_z = self.div_feature(x, y, *best_feature)
 
-        if True not in [i.size == 0 for i in leaf_labels]:
+        if len(leaf_labels) >= 2:
             tree = Tree({'特征': (best_feature[0], self.feature[best_feature[0]]),
                          '判断': best_feature[1],
                          '数量': np.unique(y, return_counts=True),
